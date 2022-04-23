@@ -34,10 +34,9 @@ def getCapacityData():
                 endRealTime = time['endRealTime']
                 timeKey = startRealTime + endRealTime
                 # 判断有时间段是否过多,多余预设阈值需删除最早的
+                capacityArr.append([timeKey, startRealTime, endRealTime])
                 if len(capacityArr) > CapacityTimeMax:
                     capacityArr.pop(0)
-                else:
-                    capacityArr.append([timeKey, startRealTime, endRealTime])
                 # if not time_list[i].get('timeISFull'):
                 #     print('配送时间 可用:')
                 # else:
