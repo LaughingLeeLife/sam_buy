@@ -366,10 +366,10 @@ def runCreateOrder():
     while 1:
         if len(goodlist) > 0 and len(threadPool) < len(goodlist):
             for k, v in goodlist.items():
-                print("启动下单进程: " + v['subTitle'])
+                print("启动下单进程: " + v['title'])
                 tOrder = threading.Thread(target=runOrder,args=(v, ))
                 tOrder.start()
-                threadPool.append(tOrder)
+                threadPool.append(v['title'])
 
         sleep(1)
 
