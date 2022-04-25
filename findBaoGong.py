@@ -7,13 +7,15 @@ import requests
 from time import sleep
 import random
 import datetime
-import time
+import threading
 
 # ## init config ###
 # 填写个人信息
 
-deviceid = 'fd1d8100e555578bbed2c33d022316715a02'
+deviceid = 'dd1d8100e555578bbed2c33d022316715a02'
 authtoken = 'x'
+# 改为自己的barkid
+barkId = "x"
 deliveryType = 2  # 1：极速达 2：全城配送
 cartDeliveryType = 2  # 1：极速达 2：全城配送
 
@@ -139,7 +141,6 @@ def getRecommendStoreListByLocation(latitude, longitude):
         return False
 
 def getBaoGongInfo(uid, address):
-    global isGo
     global goodlist
     myUrl = 'https://api-sams.walmartmobile.cn/api/v1/sams/decoration/portal/show/getPageData'
     data = {
@@ -172,7 +173,6 @@ def getBaoGongInfo(uid, address):
         'auth-token': authtoken,
         'app-version': '5.0.45.1'
     }
-    myRet = {}
     try:
         requests.packages.urllib3.disable_warnings()
         ret = requests.post(url=myUrl, headers=headers, data=json.dumps(data), verify=False)
@@ -187,20 +187,18 @@ def getBaoGongInfo(uid, address):
                     goodsList = pageModuleVO['renderContent']['goodsList']
                     for good in goodsList:
                         if int(good['spuStockQuantity']) > 0:
-                            print("有货!!! " + "名称:" + good['title'] + " 详情:" + good['subTitle'])
-                            if addCart(uid, good):
-                                isGo = False
-                                order_good = {
-                                    "spuId": good['spuId'],
-                                    "storeId": good['storeId'],
-                                    "isSelected": True,
-                                    "quantity": 1
-                                }
-                                goodlist.append(order_good)
+                            if good['spuId'] not in goodlist:
+                                print("有货!!! " + "名称:" + good['title'] + " 详情:" + good['subTitle'])
+                                if addCart(uid, good):
+                                    goodlist[str(good['spuId'])] = good
+                                    # 此处可以加通知
+                                    # notify()
+                            else:
+                                print("已加购..." + "名称:" + good['title'] + " 详情:" + good['subTitle'])
                         else:
                             print("无货... " + "名称:" + good['title'] + " 详情:" + good['subTitle'])
     except Exception as e:
-        print(myRet['data']['pageModuleVOList'])
+        # print(myRet['data']['pageModuleVOList'])
         print('getBaoGongInfo [Error]: ' + str(e))
 
 def addCart(uid, good):
@@ -247,7 +245,7 @@ def addCart(uid, good):
     except Exception as e:
         print('addCart [Error]: ' + str(e))
 
-def getCapacityData():
+def getCapacityData(good):
     myUrl = 'https://api-sams.walmartmobile.cn/api/v1/sams/delivery/portal/getCapacityData'
     headers = {
         'Host': 'api-sams.walmartmobile.cn',
@@ -280,16 +278,24 @@ def getCapacityData():
         for days in list1:
             for capcity in days['list']:
                 if not capcity['timeISFull']:
-                    order(capcity['startRealTime'], capcity['endRealTime'])
+                    print("有配送时间")
+                    order(capcity['startRealTime'], capcity['endRealTime'], good)
                 else:
                     print("无配送时间")
     except Exception as e:
         print('getCapacityData [Error]: ' + str(e))
 
 
-def order(startTime,endTime):
-    global isGo2
+def order(startTime, endTime, good):
     myUrl = 'https://api-sams.walmartmobile.cn/api/v1/sams/trade/settlement/commitPay'
+    list = []
+    order_good = {
+        "spuId": good['spuId'],
+        "storeId": good['storeId'],
+        "isSelected": True,
+        "quantity": 1
+    }
+    list.append(order_good)
     headers = {
         'Host': 'api-sams.walmartmobile.cn',
         'Connection': 'keep-alive',
@@ -309,7 +315,7 @@ def order(startTime,endTime):
         'app-version': '5.0.45.1'
     }
     data = {
-        "goodsList": goodlist,
+        "goodsList": list,
         "invoiceInfo": {},
         "cartDeliveryType": cartDeliveryType, "floorId": 1, "amount": '66666', "purchaserName": "",
         "settleDeliveryInfo": {"expectArrivalTime": startTime, "expectArrivalEndTime": endTime,
@@ -335,16 +341,15 @@ def order(startTime,endTime):
         status = myRet.get('success')
         if status:
             print('【成功】哥，咱家有菜了~')
-            isGo2 = False
             # 通知自由发挥
-            # notify()
+            notify(good['subTitle'])
             exit()
     except Exception as e:
         print('order [Error]: ' + str(e))
 
 # 加入bark通知 url地址改为自己的!!!
 def notify(name):
-    myUrl = 'https://api.day.app/xxxx/保供有货!!!/' + name
+    myUrl = "https://api.day.app/" + barkId + "/保供下单成功!!!/" + name
     try:
         requests.packages.urllib3.disable_warnings()
         requests.get(url=myUrl, verify=False)
@@ -356,34 +361,47 @@ def init():
     store, uid = getRecommendStoreListByLocation(address.get('latitude'), address.get('longitude'))
     return address, store, uid
 
+def runCreateOrder():
+    global goodlist
+    while 1:
+        if len(goodlist) > 0 and len(threadPool) < len(goodlist):
+            for k, v in goodlist.items():
+                print("启动下单进程: " + v['subTitle'])
+                tOrder = threading.Thread(target=runOrder,args=(v, ))
+                tOrder.start()
+                threadPool.append(tOrder)
+
+        sleep(1)
+
+def runOrder(good):
+    while 1:
+        getCapacityData(good)
+        sleep_time = random.randint(1000, 2000) / 1000
+        sleep(sleep_time)
+
+def runGetBaogongInfo():
+
+    while 1:
+        getBaoGongInfo(uid, address)
+        sleep_time = random.randint(2000, 10000) / 1000
+        sleep(sleep_time)
 
 if __name__ == '__main__':
-    thCount = 1
-    count = 0
-    CapacityTimeMax = 2
-    isGo = True
-    isGo2 = True
-    deliveryTime = {}
-    goodlist = []
+    goodlist = {}
+    # 下单线程池
+    threadPool = []
     date_list = []
     for i in range(0, 7):
         date_list.append((datetime.datetime.now() + datetime.timedelta(days=i)).strftime('%Y-%m-%d'))
-    # 设定下getCapacityData的头信息
 
     # 初始化,应该不需要做重试处理
     address, store, uid = init()
     print(store)
+    # 设定下getCapacityData的头信息
     storeDeliveryTemplateId = store['storeDeliveryTemplateId']
-    # 获取购物车信息,高峰期需要重试
-    while isGo:
-        # getUserCart(address, store, uid)
-        getBaoGongInfo(uid, address)
-        if isGo:
-            sleep_time = random.randint(2000, 10000) / 1000
-            sleep(sleep_time)
-    print("已经加入购物车")
-    # notify("已经加入购物车")
-    while isGo2:
-        getCapacityData()
-        sleep_time = random.randint(1000, 2000) / 1000
-        sleep(sleep_time)
+
+    t1 = threading.Thread(target=runGetBaogongInfo, args=())
+    t1.start()
+
+    t2 = threading.Thread(target=runCreateOrder, args=())
+    t2.start()

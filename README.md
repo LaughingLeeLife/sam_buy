@@ -9,6 +9,14 @@ owner :@guyongzx
 
 ###
 
+#### 4.25 更新
+
+findBaoGong.py 持续扫描是否有货,有货就加购物车并下单
+
+如果持续上3个套餐,会都下单,最后取消你不需要的
+
+加入barkid参数,如果要bark通知在一开始填入barkid
+
 #### 4.24 更新
 findBaoGong.py 保供功能,加入购物车后动结算
 
