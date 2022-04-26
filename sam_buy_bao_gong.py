@@ -366,10 +366,11 @@ def runCreateOrder():
     while 1:
         if len(goodlist) > 0 and len(threadPool) < len(goodlist):
             for k, v in goodlist.items():
-                print("启动下单进程: " + v['title'])
-                tOrder = threading.Thread(target=runOrder,args=(v, ))
-                tOrder.start()
-                threadPool.append(v['title'])
+                if str(v['spuId']) not in threadPool:
+                    print("启动下单进程: " + v['Title'])
+                    tOrder = threading.Thread(target=runOrder,args=(v, ))
+                    tOrder.start()
+                    threadPool[str(v['spuId'])] = "start"
 
         sleep(1)
 
@@ -389,7 +390,7 @@ def runGetBaogongInfo():
 if __name__ == '__main__':
     goodlist = {}
     # 下单线程池
-    threadPool = []
+    threadPool = {}
     date_list = []
     for i in range(0, 7):
         date_list.append((datetime.datetime.now() + datetime.timedelta(days=i)).strftime('%Y-%m-%d'))
