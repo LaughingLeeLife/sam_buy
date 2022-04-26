@@ -367,7 +367,7 @@ def runCreateOrder():
         if len(goodlist) > 0 and len(threadPool) < len(goodlist):
             for k, v in goodlist.items():
                 if str(v['spuId']) not in threadPool:
-                    print("启动下单进程: " + v['Title'])
+                    print("启动下单进程: " + v['title'])
                     tOrder = threading.Thread(target=runOrder,args=(v, ))
                     tOrder.start()
                     threadPool[str(v['spuId'])] = "start"
